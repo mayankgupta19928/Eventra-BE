@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: eventra-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: eventra
+    ports:
+      - '5432:5432'
+    volumes:
+      - eventra_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U eventra -d eventra']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # API on the same Docker network: use hostname `postgres`, not `localhost`
+  api:
+    build: .
+    container_name: eventra-api
+    restart: unless-stopped
+    ports:
+      - '9001:9001'
+    environment:
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_USER: postgres
+      DB_PASSWORD: admin
+      DB_NAME: eventra
+      PORT: '9001'
+      # Override in shell or a root `.env` used by Compose: JWT_SECRET=...
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-min-32-characters-long}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  eventra_pg_data:
